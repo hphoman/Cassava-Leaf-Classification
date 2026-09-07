@@ -1,6 +1,5 @@
+from dataset import warm_image_cache
 import torch
-
-import dataset
 
 def training_loop(dataloader,
                 model,
@@ -98,18 +97,59 @@ def train_model(train_dataloader,
                 model,
                 loss_fn,
                 optimizer,
-                checkpoint_name:str|None = None,
+                device,
+                checkpoint_name:str,
+                image_directory: str,
                 max_epochs: int = 15,
                 patience: int = 3,
                 min_delta:float|int = 1e-4,
-                train_accuracy_tracking: None | list = None,
-                train_loss_tracking: None | list = None,
-                val_accuracy_tracking: None | list = None,
-                val_loss_tracking: None | list = None,
                 reporting: bool = False,
                 early_stop:bool = True):
 
-    
+    """
+
+    """
+
+    train_loss_tracking = []
+    train_accuracy_tracking = []
+    val_loss_tracking = []
+    val_accuracy_tracking = []
+
+    best_val_loss = float('inf')
+    epochs_since_improvement = 0
+
+    warm_image_cache(image_directory)
+    for epoch in range(max_epochs):
+        print(f"Epoch {epoch + 1}...")
+
+        training_loop(train_dataloader, model, device,
+                      loss_fn, optimizer, train_accuracy_tracking,
+                      train_loss_tracking, reporting)
+
+        print("Validation...")
+
+        validation_loop(val_dataloader, model, loss_fn,
+                        device, val_accuracy_tracking,
+                        val_loss_tracking, reporting)
+
+        if early_stop:
+            if val_loss_tracking[-1] < best_val_loss - min_delta:
+                best_val_loss = val_loss_tracking[-1]
+                epochs_since_improvement = 0
+
+                torch.save({
+                    'epoch': epoch + 1,
+                    'model_state_dict': model.state_dict(),
+                    "val_loss": val_loss_tracking[-1],
+                    "val_accuracy": val_accuracy_tracking[-1]
+                }, checkpoint_name)
+
+            else:
+                epochs_since_improvement += 1
+
+            if epochs_since_improvement >= patience:
+                print("Early stopping")
+                break
 
 def main():
     ...
