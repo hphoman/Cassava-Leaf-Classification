@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from torchvision.transforms import v2
 
 
-def load_metadata(data_dir: str) -> tuple[pd.DataFrame, Path, Path]:
+def load_metadata(data_dir: str | Path, return_simple:bool = False) -> tuple[pd.DataFrame, Path, Path] | tuple[pd.DataFrame, Path, Path, dict]:
     '''
 
     '''
@@ -34,6 +34,16 @@ def load_metadata(data_dir: str) -> tuple[pd.DataFrame, Path, Path]:
 
     with open(label_path) as f:
         label_map = json.load(f)
+
+    if return_simple:
+        simplified_labels = {}
+        for values in label_map.items():
+            key, label = values[0], values[1]
+            label = label.split('(')[-1].split(')')[0]
+            key = int(key)
+            simplified_labels[key] = label
+
+        return df, label_map, image_dir, simplified_labels
 
     return df, label_map, image_dir
 
@@ -123,7 +133,7 @@ def create_transformations() -> tuple[v2.Compose, v2.Compose, v2.Compose]:
     return train_transformation, val_transformation, test_transformation
 
 class CassavaDataset(Dataset):
-    def __init__(self, df:pd.DataFrame, image_dir:Path, transform:v2.Compose=None, return_path = False):
+    def __init__(self, df:pd.DataFrame, image_dir:Path, transform:v2.Compose|None=None, return_path = False):
         self.df = df.reset_index(drop=True)
         self.image_dir = image_dir
         self.transform = transform
@@ -135,7 +145,7 @@ class CassavaDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
 
-        image_path = self.image_dir/row['image']
+        image_path = os.path.join(self.image_dir, row["image_id"])
 
         image = Image.open(image_path).convert("RGB")
         label = int(row['label'])
@@ -147,16 +157,3 @@ class CassavaDataset(Dataset):
             return image, label, str(image_path)
 
         return image, label
-
-def main():
-    df, label_path, image_dir = load_metadata("data/")
-    print(df.head())
-    print(df.shape)
-    print(label_path)
-    print(image_dir)
-
-    train_df, val_df, test_df = create_splits(df)
-    train_transformation, val_transformation, test_transformation = create_transformations()
-
-if __name__ == '__main__':
-    main()

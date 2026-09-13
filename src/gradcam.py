@@ -16,7 +16,7 @@ class GradCAM:
 
     def _forward_hook(self, module, input, output):
         self.activation = output
-        output.register_hoold(self._save_gradients)
+        output.register_hook(self._save_gradients)
 
     def _save_gradients(self, grad):
         self.gradients=grad
@@ -28,7 +28,7 @@ class GradCAM:
         logits = self.model(image)
         pred = logits.argmax(dim=1).item()
 
-        if target_class is not None:
+        if target_class is None:
             target_class = pred
 
         score = logits[0, target_class]
@@ -64,15 +64,21 @@ def create_overlay(heatmap, display_image, alpha=0.45):
 
     overlay = cv.addWeighted(display_image, 1-alpha, color_heatmap, alpha, 0)
 
-    return resized, overlay
+    return overlay
 
-def get_display_image(image_path):
-    image = Image.open(image_path).convert('RGB')
+def prepare_gradcam_images(image_path, model_transform, device=None):
+    image = Image.open(image_path).convert("RGB")
 
-    transform = v2.Compose([
+    display_transform = v2.Compose([
         v2.Resize(256),
         v2.CenterCrop(224)
     ])
 
-    return transform(image)
+    display_image = display_transform(image)
+    model_image = model_transform(image)
+
+    if device is not None:
+        model_image = model_image.unsqueeze(0).to(device)
+
+    return display_image, model_image
 

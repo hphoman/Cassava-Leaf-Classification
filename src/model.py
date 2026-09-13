@@ -3,7 +3,7 @@ from torchvision.models import resnet18, ResNet18_Weights
 from torchvision.models.resnet import ResNet
 import torch.nn as nn
 
-def create_model(unfreeze_layers: str | list[str],
+def create_model(unfreeze_layers: str | list[str] = ['layer4', 'fc'],
                     checkpoint=None,
                     num_classes:int = 5) -> ResNet:
     """

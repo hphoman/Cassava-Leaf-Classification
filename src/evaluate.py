@@ -60,3 +60,4 @@ def compute_metrics(y_pred, y_true, class_names, report_f1: bool = False):
         return report, confusion_matrices, class_confusion, accuracy, macro_f1, weighted_f1
 
     return report, confusion_matrices, class_confusion, accuracy
+
