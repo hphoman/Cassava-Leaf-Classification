@@ -72,7 +72,7 @@ def create_splits(df: pd.DataFrame,
     '''
     train_df, temp_df = train_test_split(df, test_size=0.2,
                                          random_state=random_state, stratify=df['label'])
-    val_df, test_df = train_test_split(temp_df, test_size=0.2,
+    val_df, test_df = train_test_split(temp_df, test_size=0.5,
                                        random_state=random_state, stratify=temp_df['label'])
 
     assert len(train_df) + len(val_df) + len(test_df) == len(df)
@@ -123,10 +123,11 @@ def create_transformations() -> tuple[v2.Compose, v2.Compose, v2.Compose]:
     return train_transformation, val_transformation, test_transformation
 
 class CassavaDataset(Dataset):
-    def __init__(self, df:pd.DataFrame, image_dir:Path, transform:v2.Compose=None):
+    def __init__(self, df:pd.DataFrame, image_dir:Path, transform:v2.Compose=None, return_path = False):
         self.df = df.reset_index(drop=True)
         self.image_dir = image_dir
         self.transform = transform
+        self.return_path = return_path
 
     def __len__(self):
         return len(self.df)
@@ -134,7 +135,7 @@ class CassavaDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
 
-        image_path = os.path.join(self.image_dir, row['image'])
+        image_path = self.image_dir/row['image']
 
         image = Image.open(image_path).convert("RGB")
         label = int(row['label'])
@@ -142,10 +143,13 @@ class CassavaDataset(Dataset):
         if self.transform:
             image = self.transform(image)
 
+        if self.return_path:
+            return image, label, str(image_path)
+
         return image, label
 
 def main():
-    df, label_path, image_dir = load_metadata('data/')
+    df, label_path, image_dir = load_metadata("data/")
     print(df.head())
     print(df.shape)
     print(label_path)

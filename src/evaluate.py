@@ -38,7 +38,7 @@ def compute_metrics(y_pred, y_true, class_names, report_f1: bool = False):
     row_cm = confusion_matrix(y_true, y_pred, normalize='true')
     column_cm = confusion_matrix(y_true, y_pred, normalize='pred')
 
-    confusion_matrices = pd.DataFrame(data={'raw': raw_cm, 'row': row_cm, 'column': column_cm})
+    confusion_matrices = {'raw': raw_cm, 'row': row_cm, 'column': column_cm}
 
     data = []
 
@@ -52,9 +52,11 @@ def compute_metrics(y_pred, y_true, class_names, report_f1: bool = False):
                                 for j in range(len(class_names)) if i != j]
     class_confusion.sort_values(by='Count', ascending=False, inplace=True, ignore_index=True)
 
+    accuracy = accuracy_score(y_true, y_pred)
+
     if report_f1:
         macro_f1 = f1_score(y_true, y_pred, average='macro')
         weighted_f1 = f1_score(y_true, y_pred, average='weighted')
-        return report, confusion_matrices, class_confusion, class_confusion, macro_f1, weighted_f1
+        return report, confusion_matrices, class_confusion, accuracy, macro_f1, weighted_f1
 
-    return report, confusion_matrices, class_confusion
+    return report, confusion_matrices, class_confusion, accuracy

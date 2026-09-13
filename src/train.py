@@ -104,7 +104,8 @@ def train_model(train_dataloader,
                 patience: int = 3,
                 min_delta:float|int = 1e-4,
                 reporting: bool = False,
-                early_stop:bool = True):
+                early_stop:bool = True,
+                warm_cache = False):
 
     """
 
@@ -118,7 +119,9 @@ def train_model(train_dataloader,
     best_val_loss = float('inf')
     epochs_since_improvement = 0
 
-    warm_image_cache(image_directory)
+    if warm_cache:
+        warm_image_cache(image_directory)
+
     for epoch in range(max_epochs):
         print(f"Epoch {epoch + 1}...")
 
@@ -132,24 +135,31 @@ def train_model(train_dataloader,
                         device, val_accuracy_tracking,
                         val_loss_tracking, reporting)
 
+        if val_loss_tracking[-1] < best_val_loss - min_delta:
+            best_val_loss = val_loss_tracking[-1]
+            epochs_since_improvement = 0
+
+            torch.save({
+                'epoch': epoch + 1,
+                'model_state_dict': model.state_dict(),
+                "val_loss": val_loss_tracking[-1],
+                "val_accuracy": val_accuracy_tracking[-1]
+            }, checkpoint_name)
+
+        else:
+            epochs_since_improvement += 1
+
         if early_stop:
-            if val_loss_tracking[-1] < best_val_loss - min_delta:
-                best_val_loss = val_loss_tracking[-1]
-                epochs_since_improvement = 0
-
-                torch.save({
-                    'epoch': epoch + 1,
-                    'model_state_dict': model.state_dict(),
-                    "val_loss": val_loss_tracking[-1],
-                    "val_accuracy": val_accuracy_tracking[-1]
-                }, checkpoint_name)
-
-            else:
-                epochs_since_improvement += 1
-
             if epochs_since_improvement >= patience:
                 print("Early stopping")
                 break
+
+    return_data = {"train_loss": train_loss_tracking,
+                   "train_accuracy": train_accuracy_tracking,
+                   "val_loss": val_loss_tracking,
+                   "val_accuracy": val_accuracy_tracking}
+
+    return return_data
 
 def main():
     ...

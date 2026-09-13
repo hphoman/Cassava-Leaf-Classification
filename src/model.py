@@ -28,7 +28,7 @@ def create_model(unfreeze_layers: str | list[str],
         try:
            layer = model.get_submodule(layer_name)
         except AttributeError as exc:
-            available_layers = [layer for layer, _ in model.children()]
+            available_layers = [layer for layer, _ in model.named_children()]
             raise ValueError(
                 f"Layer {layer_name!r} not available for ResNet-18\n"
                 f"Available layers: {', '.join(available_layers)}"
