@@ -27,12 +27,12 @@ def create_model(unfreeze_layers: str | list[str] = ['layer4', 'fc'],
     for layer_name in layers_to_unfreeze:
         try:
            layer = model.get_submodule(layer_name)
-        except AttributeError as exc:
+        except AttributeError as err:
             available_layers = [layer for layer, _ in model.named_children()]
             raise ValueError(
                 f"Layer {layer_name!r} not available for ResNet-18\n"
                 f"Available layers: {', '.join(available_layers)}"
-            ) from exc
+            ) from err
 
         for param in layer.parameters():
             param.requires_grad = True

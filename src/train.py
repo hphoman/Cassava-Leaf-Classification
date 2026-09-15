@@ -160,9 +160,3 @@ def train_model(train_dataloader,
                    "val_accuracy": val_accuracy_tracking}
 
     return return_data
-
-def main():
-    ...
-
-if __name__ == '__main__':
-    main()

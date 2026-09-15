@@ -94,7 +94,7 @@ def create_gradcam(gradcam:GradCAM, data:dict, simplified_labels:dict, image_dir
 def main():
     data_dir = Path("data")
     checkpoint = Path("models/best_finetuned_resnet18.pt")
-    device = ("cuda" if torch.cuda.is_available() else "cpu")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     print("Loading data...")
     df, label_map, image_dir, simple_label = load_metadata(data_dir, return_simple=True)
