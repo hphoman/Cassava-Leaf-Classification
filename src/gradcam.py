@@ -7,6 +7,17 @@ from torchvision.transforms import v2
 
 
 class GradCAM:
+    """
+
+
+    Parameters
+    ----------
+
+
+    Returns
+    -------
+
+    """
     def __init__(self, model, target_layer):
         self.model = model
         self.target_layer = target_layer
@@ -49,6 +60,17 @@ class GradCAM:
         self.handle.remove()
 
 def create_overlay(heatmap, display_image, alpha=0.45):
+    """
+
+
+    Parameters
+    ----------
+
+
+    Returns
+    -------
+
+    """
     if torch.is_tensor(heatmap):
         heatmap = heatmap.detach().cpu().numpy()
 
@@ -67,6 +89,17 @@ def create_overlay(heatmap, display_image, alpha=0.45):
     return overlay
 
 def prepare_gradcam_images(image_path, model_transform, device=None):
+    """
+
+
+    Parameters
+    ----------
+
+
+    Returns
+    -------
+
+    """
     image = Image.open(image_path).convert("RGB")
 
     display_transform = v2.Compose([

@@ -6,6 +6,14 @@ import torch
 def predict(model, dataloader, device) -> tuple[list, list, list]:
     """
 
+
+    Parameters
+    ----------
+
+
+    Returns
+    -------
+
     """
     all_labels = []
     all_preds = []
@@ -30,8 +38,15 @@ def predict(model, dataloader, device) -> tuple[list, list, list]:
 def compute_metrics(y_pred, y_true, class_names, report_f1: bool = False):
     """
 
-    """
 
+    Parameters
+    ----------
+
+
+    Returns
+    -------
+
+    """
     report = classification_report(y_true, y_pred, target_names=class_names)
 
     raw_cm = confusion_matrix(y_true, y_pred)

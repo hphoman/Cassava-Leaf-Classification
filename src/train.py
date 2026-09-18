@@ -1,18 +1,49 @@
-from dataset import warm_image_cache
+from pathlib import Path
 import torch
 
-def training_loop(dataloader,
-                model,
-                device,
-                loss_fn,
-                optimizer,
+from dataset import warm_image_cache
+
+def training_loop(dataloader: torch.utils.data.DataLoader,
+                model: type[torch.nn.Module],
+                device: torch.device,
+                loss_fn: type[torch.nn.Module],
+                optimizer: type[torch.optim.Optimizer],
                 accuracy_tracking: None | list = None,
                 loss_tracking: None | list = None,
                 reporting: bool = False):
-    '''
+    """
+    Runs one epoch of training.
 
-    '''
+    Parameters
+    ----------
+        dataloader: torch.utils.data.DataLoader
+            A DataLoader object that contains training data.
 
+        model: torch.nn.Module
+            A ResNet-18 model to be trained.
+
+        device: torch.device
+            A torch device to be used for training.
+
+        loss_fn: torch.nn.Module
+            A torch.nn.Module loss function to be used for training. The method allows custom methods, but correct and
+            consistent methods are assumed.
+
+        optimizer: torch.optim.Optimizer
+            A torch optimizer to be used for training. As with the loss function, this method allows custom optimizers
+            but assumes all optimizers are correctly implemented.
+
+        accuracy_tracking: list or None
+            If not None, a list to hold the average accuracy per epoch. If parameter is None, accuracy tracking will
+            be disabled.
+
+        loss_tracking: list or None
+            If not None, a list to hold the average loss produced by the loss function. If parameter is None,
+            loss tracking will be disabled.
+
+        reporting: bool
+            If True, method will report the loss value every 100 batches.
+    """
     size = len(dataloader.dataset)
     model.train()
     total_loss = torch.zeros((), device=device)
@@ -49,16 +80,44 @@ def training_loop(dataloader,
         avg_loss = (total_loss / num_seen).item()
         loss_tracking.append(avg_loss)
 
-def validation_loop(dataloader,
-                    model,
-                    loss_fn,
-                    device,
+def validation_loop(dataloader: torch.utils.data.DataLoader,
+                    model: type[torch.nn.Module],
+                    device: torch.device,
+                    loss_fn: type[torch.nn.Module],
                     accuracy_tracking: None | list = None,
                     loss_tracking: None | list = None,
                     reporting: bool = False):
-    '''
 
-    '''
+
+    """
+    Runs one epoch of validation.
+
+    Parameters
+    ----------
+        dataloader: torch.utils.data.DataLoader
+             A DataLoader object that contains validation data.
+
+        model: torch.nn.Module
+            A ResNet-18 model to be validation.
+
+        device: torch.device
+            A torch device to be used for validation.
+
+        loss_fn: torch.nn.Module
+            A torch.nn.Module loss function to be used for validation. The method allows custom methods, but correct and
+            consistent methods are assumed.
+
+        accuracy_tracking: list or None
+            If not None, a list to hold the average accuracy per epoch. If parameter is None, accuracy tracking will
+            be disabled.
+
+        loss_tracking: list or None
+            If not None, a list to hold the average loss produced by the loss function. If parameter is None,
+            loss tracking will be disabled.
+
+        reporting: bool
+            If True, method will report the loss value every 100 batches.
+        """
 
     size = len(dataloader.dataset)
     model.eval()
@@ -92,22 +151,77 @@ def validation_loop(dataloader,
         avg_loss = (total_loss / num_seen).item()
         loss_tracking.append(avg_loss)
 
-def train_model(train_dataloader,
-                val_dataloader,
-                model,
-                loss_fn,
-                optimizer,
-                device,
+def train_model(train_dataloader: torch.utils.data.DataLoader,
+                val_dataloader: torch.utils.data.DataLoader,
+                model: type[torch.nn.Module],
+                loss_fn: type[torch.nn.Module],
+                optimizer: type[torch.optim.Optimizer],
+                device: torch.device,
                 checkpoint_name:str,
-                image_directory: str,
+                image_directory: str | Path | None = None,
                 max_epochs: int = 15,
-                patience: int = 3,
-                min_delta:float|int = 1e-4,
+                patience: int | None= 3,
+                min_delta:float | int = 1e-4,
                 reporting: bool = False,
                 early_stop:bool = True,
-                warm_cache = False):
-
+                warm_cache: bool = False):
     """
+    Trains a ResNet-18 model based for a predefined number of epochs.
+
+    Parameters
+    ----------
+        train_dataloader: torch.utils.data.DataLoader
+            A DataLoader object that contains training data.
+
+        val_dataloader: torch.utils.data.Dataloader
+            A Dataloader object that contains the validation data.
+
+        model: torch.nn.Module
+            The ResNet-18 model to be trained.
+
+        loss_fn: torch.nn.Module
+            A torch.nn.Module loss function to be used for training. The method allows custom methods, but correct and
+            consistent methods are assumed.
+
+        optimizer: torch.optim.Optimizer
+            A torch optimizer to be used for training. As with the loss function, this method allows custom optimizers
+            but assumes all optimizers are correctly implemented.
+
+        device: torch.device
+            A torch device to be used for training and validation.
+
+        checkpoint_name: str
+            A string containing the desired name of the saved model after training is completed.
+
+        image_directory: str, Path, or None
+            If not None, the string or Path object to the directory containing the images. If warm_cache is True, an
+            image directory is expected to be passed.
+
+        max_epochs: int
+            Maximum number of epochs to train for.
+
+        patience: int | None
+            An int representing how many epochs the model will allow to pass before early stopping. If early_stop is
+            True, a value for patience is expected
+
+        min_delta: float | int
+            A float or int specifying minimum change expected from each epoch in order to defined as a
+            significant change.
+
+        reporting: bool
+            If True, both training and validation will be reported every 100 batches during each epoch.
+
+        early_stop: bool
+            If True, the method will perform an early stop if the model doesn't change significantly within the
+            specified number of epochs defined by the patience parameter.
+
+        warm_cache: bool
+            If True, the provided image cached will be warmed before the first training loop.
+
+    Returns
+    -------
+        return_data: dict
+            A dictionary containing the training loss, training accuracy, validation loss, and validation accuracy.
 
     """
 
@@ -120,7 +234,10 @@ def train_model(train_dataloader,
     epochs_since_improvement = 0
 
     if warm_cache:
-        warm_image_cache(image_directory)
+        if image_directory is not None:
+            warm_image_cache(image_directory)
+        else:
+            raise ValueError('image_directory must be provided since warm_cache was set to True.')
 
     for epoch in range(max_epochs):
         print(f"Epoch {epoch + 1}...")
@@ -131,8 +248,7 @@ def train_model(train_dataloader,
 
         print("Validation...")
 
-        validation_loop(val_dataloader, model, loss_fn,
-                        device, val_accuracy_tracking,
+        validation_loop(val_dataloader, model, device, loss_fn, val_accuracy_tracking,
                         val_loss_tracking, reporting)
 
         if val_loss_tracking[-1] < best_val_loss - min_delta:
@@ -150,6 +266,8 @@ def train_model(train_dataloader,
             epochs_since_improvement += 1
 
         if early_stop:
+            if patience is None:
+                raise ValueError('patience must be defined if early_stop is set to True.')
             if epochs_since_improvement >= patience:
                 print("Early stopping")
                 break

@@ -11,6 +11,17 @@ from evaluate import predict, compute_metrics
 from gradcam import GradCAM, create_overlay, prepare_gradcam_images
 
 def select_gradcam_examples(df):
+    """
+
+
+    Parameters
+    ----------
+
+
+    Returns
+    -------
+
+    """
     examples = {}
 
     examples["CGM_CMD"] = (df[
@@ -52,6 +63,17 @@ def select_gradcam_examples(df):
     return examples
 
 def create_gradcam(gradcam:GradCAM, data:dict, simplified_labels:dict, image_dir:Path, device, model_transform):
+    """
+
+
+    Parameters
+    ----------
+
+
+    Returns
+    -------
+
+    """
     num = len(data)
     keys = list(data.keys())
 
