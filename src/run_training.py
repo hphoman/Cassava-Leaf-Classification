@@ -10,15 +10,20 @@ from train import train_model
 
 def history_to_df(history, stage):
     """
-
+    Converts training and validation history to a dataframe to be used for reporting purposes.
 
     Parameters
     ----------
+    history: dict
+        A dictionary containing the training loss, training accuracy, validation loss, and validation accuracy.
 
+    stage: str
+        A string reporting what stage (for example, 'finetune' or 'test') the model was at.
 
     Returns
     -------
-
+        history_df: pd.DataFrame
+        A DataFrame containing the stage, epoch, training loss, validation loss, training accuracy, validation accuracy.
     """
     return pd.DataFrame({
         "stage": stage,

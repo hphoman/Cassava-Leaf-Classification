@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from pathlib import Path
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
@@ -12,15 +13,21 @@ from gradcam import GradCAM, create_overlay, prepare_gradcam_images
 
 def select_gradcam_examples(df):
     """
-
+    After reviewing the data provided by the model, we discovered four common confusion for models: CGM being mistaken
+    for CMD, healthy cases being mistaken for CBB, healthy cases being mistaken for CGM, and CBSD being mistaken for
+    CMD. This method grabs the highest confidence mistakes in each of these four categories, along with two of the
+    highest confidence healthy and CMD cases for a baseline, and returns their information to be used for the
+    GradCAM process.
 
     Parameters
     ----------
-
+    df: pd.DataFrame
+        A DataFrame containing the image names, correct classes, predicted classes, and confidence scores.
 
     Returns
     -------
-
+    examples: pd.Series
+        A DataFrame containing six examples of either common errors in the model or correct predictions.
     """
     examples = {}
 
@@ -62,17 +69,33 @@ def select_gradcam_examples(df):
 
     return examples
 
-def create_gradcam(gradcam:GradCAM, data:dict, simplified_labels:dict, image_dir:Path, device, model_transform):
+def create_gradcam(gradcam:GradCAM, data:pd.DataFrame, simplified_labels:dict, image_dir:Path, device, model_transform):
     """
-
+    This runs all six images found in the select_gradcam_examples method through the GradCAM process and generates the
+    final comparison image with MatPlotLib.
 
     Parameters
     ----------
+    gradcam: GradCAM
+        A GradCAM object used to initialize the process, move the image through the model, and remove all hooks from
+        the model
 
+    data: pd.Series
+        A DataFrame containing the image names, correct classes, predicted classes, and confidence scores to be used in
+        the GradCAM process.
 
-    Returns
-    -------
+    simplified_labels: dict
+        A dictionary containing the simplified disease class names (For example, "CGM" instead of "Cassava Green
+        Mottle (CGM).")
 
+    image_dir: Path
+        A Path object pointing to the directory containing the images.
+
+    device: torch.device
+        A PyTorch device where the model is running.
+
+    model_transform: torchvision.transforms.v2
+        A v2 composition transformation used to transform the test images.
     """
     num = len(data)
     keys = list(data.keys())
@@ -152,6 +175,10 @@ def main():
     create_gradcam(gradcam, examples, simple_label, image_dir, device, test_transform)
 
     gradcam.remove()
+
+    print(f"Model test completed!")
+    for key, val in metrics.items():
+        print(f"{key}: {val}")
 
 if __name__ == "__main__":
     main()

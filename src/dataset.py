@@ -10,8 +10,7 @@ from torch.utils.data import Dataset
 from torchvision.transforms import v2
 
 
-def load_metadata(data_dir: str | Path, return_simple:bool = False) -> (tuple[pd.DataFrame, dict, Path]
-                                                                        | tuple[pd.DataFrame, dict, Path, dict]):
+def load_metadata(data_dir: str | Path, return_simple:bool = False):
     """
     Creates a DataFrame for the labels, generates a mapping dictionary for labels, creates a Path object for the image
     directory, and possibly a dictionary of simplified label names.
@@ -19,9 +18,10 @@ def load_metadata(data_dir: str | Path, return_simple:bool = False) -> (tuple[pd
     Parameters
     ----------
     data_dir: str or Path
-        A string or Path object referring to the directory where the data & relevant csv/json files ares located
+        A string or Path object referring to the directory where the data & relevant csv/json files are located
+
     return_simple: bool
-        Boolean condition to return the simplified disease name. For example, if return_simple = True the method will
+        Boolean condition to return the simplified disease name. For example, if return_simple = True the function will
         return a dictionary containing items such as "CGM" instead of "Cassava Green Mottle (CGM)."
 
     Returns
@@ -65,7 +65,7 @@ def load_metadata(data_dir: str | Path, return_simple:bool = False) -> (tuple[pd
 
     return df, label_map, image_dir
 
-def warm_image_cache(directory: str | Path) -> None:
+def warm_image_cache(directory: str | Path):
     """
     Allows warming of the image cache before training to help prevent storage bottlenecks.
 
@@ -100,9 +100,9 @@ def warm_image_cache(directory: str | Path) -> None:
     print(f"Cache warm-up completed in {elapsed:.1f}s")
 
 def create_splits(label_df: pd.DataFrame,
-                  random_state:int=42) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame] :
+                  random_state:int=42):
     """
-    Creates 80%/10%/10% train, validation, and test splits for our images.
+    Creates 80% training split, 10% validation split, and 10% held-out testing split.
 
     Parameters
     ----------
@@ -185,21 +185,23 @@ class CassavaDataset(Dataset):
     ----------
         label_df: pd.DataFrame
             A dataframe containing the image IDs and respective labels for all images.
+
         image_directory: Path
             A Path object referencing the directory containing the images for this dataset.
+
         transform: v2.Compose
             A composition transformation for the images in this dataset.
+
         return_path: bool
             A boolean condition that will, if True, return the image name along with the image and its label. This
             parameter is mainly for reporting purposes and shouldn't be used during training/validation.
 
     """
-    def __init__(self, label_df:pd.DataFrame, image_directory:Path, transform:v2.Compose|None=None,
+    def __init__(self, label_df:pd.DataFrame, image_directory:Path, transform:v2.Compose,
                  return_path = False):
         self.df = label_df.reset_index(drop=True)
         self.image_dir = image_directory
-        if transform is not None:
-            self.transform = transform
+        self.transform = transform
         self.return_path = return_path
 
     def __len__(self):
