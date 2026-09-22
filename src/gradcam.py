@@ -1,9 +1,9 @@
 import cv2 as cv
 import numpy as np
+from pathlib import Path
 from PIL import Image
 import torch
 from torchvision.transforms import v2
-
 
 class GradCAM:
     """
@@ -14,17 +14,17 @@ class GradCAM:
         model: torch.nn.Module
             A trained ResNet-18 model to generate GradCAM heatmaps.
 
-        target_layer: str
-            A string representing a layer in the model to target for the heatmaps.
+        target_layer: torch.nn.Module
+            The layer in the model to target for the heatmaps.
     """
-    def __init__(self, model, target_layer):
+    def __init__(self, model: torch.nn.Module, target_layer: torch.nn.Module):
         self.model = model
         self.target_layer = target_layer
         self.activation = None
         self.gradients = None
         self.handle = self.target_layer.register_forward_hook(self._forward_hook)
 
-    def _forward_hook(self, model, input, output):
+    def _forward_hook(self, model:torch.nn.Module, input:torch.Tensor, output: torch.Tensor):
         """
         A helper function that registers the forward hook to capture the feature map activations.
 
@@ -41,7 +41,7 @@ class GradCAM:
         self.activation = output
         output.register_hook(self._save_gradients)
 
-    def _save_gradients(self, grad):
+    def _save_gradients(self, grad:torch.Tensor):
         """
         A helper function to capture the value of the gradients for the target layer.
 
@@ -53,7 +53,7 @@ class GradCAM:
         """
         self.gradients=grad
 
-    def generate(self, image, target_class=None):
+    def generate(self, image:torch.Tensor, target_class:int | None=None):
         """
         Sends a single image through the model, and captures the gradients along with the final prediction.
 
@@ -62,7 +62,7 @@ class GradCAM:
         image: torch.Tensor
             An image that has been transformed into a tensor acting as the model's input data
 
-        target_class: int
+        target_class: int or None
             An int representing the target class of the image to be predicted. In most cases this value will be None,
             and we will use the models predicted class.
 
@@ -101,9 +101,9 @@ class GradCAM:
         """A helper function used to remove the forward hook after GradCAM is completed."""
         self.handle.remove()
 
-def create_overlay(heatmap, display_image, alpha=0.45):
+def create_overlay(heatmap:torch.Tensor, display_image: Image.Image | np.ndarray, alpha: float|int=0.45):
     """
-
+    Generates the original display image with the GradCAM heatmap overlay.
 
     Parameters
     ----------
@@ -129,18 +129,17 @@ def create_overlay(heatmap, display_image, alpha=0.45):
     if isinstance(display_image, Image.Image):
         display_image = np.array(display_image)
 
-    resized = cv.resize(heatmap,
-                        (display_image.shape[1], display_image.shape[0]))
+    resized = cv.resize(heatmap,(display_image.shape[1], display_image.shape[0]))
 
     heatmap_uint8 = np.uint8(255 * resized)
-    color_heatmap = cv.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
+    color_heatmap = cv.applyColorMap(heatmap_uint8, cv.COLORMAP_JET)
     color_heatmap = cv.cvtColor(color_heatmap, cv.COLOR_BGR2RGB)
 
     overlay = cv.addWeighted(display_image, 1-alpha, color_heatmap, alpha, 0)
 
     return overlay
 
-def prepare_gradcam_images(image_path, model_transform, device):
+def prepare_gradcam_images(image_path:str | Path, model_transform:v2.Compose, device:torch.device):
     """
     Performs any pre-processing steps need for the GradCAM process.
 
@@ -158,8 +157,8 @@ def prepare_gradcam_images(image_path, model_transform, device):
     Returns
     -------
 
-    display_image: torch.Tensor
-        A tensor containing the original input image after the display transformations.
+    display_image: PIL.Image.Image
+        A PIL Image containing the original input image after the display transformations.
 
     model_image: torch.Tensor
         A tensor containing the original input image after the model transformations. After this method is called, the

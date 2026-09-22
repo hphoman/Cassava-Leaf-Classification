@@ -3,7 +3,7 @@ from sklearn.metrics import (accuracy_score, classification_report,
                              confusion_matrix, f1_score)
 import torch
 
-def predict(model, dataloader, device) -> tuple[list, list, list]:
+def predict(model:torch.nn.Module, dataloader:torch.utils.data.DataLoader, device:torch.device):
     """
     Runs the test loop and returns all true labels, predicted labels, and confidence scores.
 
@@ -45,7 +45,7 @@ def predict(model, dataloader, device) -> tuple[list, list, list]:
 
     return y_true, y_pred, all_confidence
 
-def compute_metrics(y_true, y_pred, class_names, report_f1: bool = False):
+def compute_metrics(y_true:list, y_pred:list, class_names:dict, report_f1: bool = False):
     """
     Computes all important metrics (such as per-class precision, per-class recall, confusion matrices, accuracy scores,
     macro F1-score, and weighted F1-score) needed for our analysis.
@@ -59,7 +59,7 @@ def compute_metrics(y_true, y_pred, class_names, report_f1: bool = False):
         A list containing the predicted classes for each prediction.
 
     class_names: dict
-        A dictionary containing the names of each class.
+        A dictionary mapping integer class IDs to class names.
 
     report_f1: bool
         If True, the method will report the macro and weighted F1-scores independently of the classification report.
@@ -85,6 +85,9 @@ def compute_metrics(y_true, y_pred, class_names, report_f1: bool = False):
         weight_f1 (float): if return_f1 is True, the weighted F1-Score will be returned.
 
     """
+    # Creating an order sequence of class names
+    class_names = [class_names[i] for i in range(len(class_names))]
+
     report = classification_report(y_true, y_pred, target_names=class_names, output_dict=True)
 
     raw_cm = confusion_matrix(y_true, y_pred)

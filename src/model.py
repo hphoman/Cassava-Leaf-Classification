@@ -8,11 +8,11 @@ import torch.nn as nn
 
 def define_loss_optim(label_df: pd.DataFrame,
                       model,
-                      device: torch.device ,
-                      layers:str|tuple = ['layer4', 'fc'],
-                      lrs: float|int|tuple = [1e-4, 1e-3],
-                      loss_fn:type[nn.Module] = nn.CrossEntropyLoss,
-                      optimizer:type[torch.optim.Optimizer] = torch.optim.Adam,
+                      device: torch.device,
+                      layers:str|tuple[str,...] = ['layer4', 'fc'],
+                      lrs: float|int|tuple[float,...] = [1e-4, 1e-3],
+                      loss_fn:nn.Module = nn.CrossEntropyLoss,
+                      optimizer:torch.optim.Optimizer = torch.optim.Adam,
                       loss_weights:str|np.ndarray|torch.Tensor='unweighted',
                       loss_kwargs:dict | None = None,
                       optimizer_kwargs:dict | None = None):
@@ -27,7 +27,7 @@ def define_loss_optim(label_df: pd.DataFrame,
         model: torch.nn.Module
             A torch.nn.Module representing the ResNet-18 model.
 
-        device: torch.device or str
+        device: torch.device
             A torch.device representing the device on which the model is to be trained.
 
         layers: str or tuple
@@ -148,14 +148,19 @@ def define_loss_optim(label_df: pd.DataFrame,
     for lr, layer_name in zip(lrs, layers):
         try:
             layer = model.get_submodule(layer_name)
-        except AttributeError as err:
-            available_layers = [layer_name for layer_name, _ in model.named_children()]
-            raise ValueError(
-                f"Layer {layer_name!r} not available for ResNet-18\n"
-                f"Available layers: {', '.join(available_layers)}"
-            ) from err
 
-        optimizer_params.append({'params': layer.parameters(), 'lr': lr})
+        except AttributeError as err:
+            available_layers = [name for name, _ in model.named_children()]
+
+            raise ValueError(f"Layer {layer_name!r} not available for ResNet-18\n"
+                f"Available layers: {', '.join(available_layers)}") from err
+
+        trainable_params = [param for param in layer.parameters() if param.requires_grad]
+
+        if not trainable_params:
+            raise ValueError(f"Layer {layer_name!r} contains no trainable parameters.")
+
+        optimizer_params.append({"params": trainable_params, "lr": lr})
 
     try:
         optim = optimizer(optimizer_params, **optimizer_kwargs)
@@ -165,9 +170,9 @@ def define_loss_optim(label_df: pd.DataFrame,
 
     return criterion, optim
 
-def create_model(unfreeze_layers: str | tuple = ['layer4', 'fc'],
+def create_model(unfreeze_layers: str | tuple[str,...] = ['layer4', 'fc'],
                     checkpoint: str| None | Path =None,
-                    num_classes:int = 5, checkpoint_weights_only:bool = False):
+                    num_classes:int = 5):
     """
     Creates a ResNet-18 model with any specified layers unfrozen. This method is also used to load any checkpoints and
     ensure the output layer matches the correct number of classes.
@@ -183,10 +188,6 @@ def create_model(unfreeze_layers: str | tuple = ['layer4', 'fc'],
         num_classes: int
             The number of classes to predict.
 
-        checkpoint_weights_only: bool
-            If True, the passed checkpoints contains only weights. If you are using a checkpoint generated from this
-            project, this condition should be sent to False.
-
     Returns
     -------
         model: ResNet
@@ -200,10 +201,7 @@ def create_model(unfreeze_layers: str | tuple = ['layer4', 'fc'],
     model.fc = nn.Linear(num_features, num_classes)
 
     if checkpoint:
-        if checkpoint_weights_only == False:
-            checkpoint = torch.load(checkpoint, weights_only=False)
-        else:
-            checkpoint = torch.load(checkpoint, weights_only=True)
+        checkpoint = torch.load(checkpoint, weights_only=True)
         model.load_state_dict(checkpoint['model_state_dict'])
 
     for param in model.parameters():

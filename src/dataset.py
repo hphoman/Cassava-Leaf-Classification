@@ -57,6 +57,7 @@ def load_metadata(data_dir: str | Path, return_simple:bool = False):
         simplified_labels = {}
         for values in label_map.items():
             key, label = values[0], values[1]
+            # Dataset labels store abbreviated class names in parentheses. For example, "Cassava Green Mottle (CGM)".
             label = label.split('(')[-1].split(')')[0]
             key = int(key)
             simplified_labels[key] = label
@@ -67,7 +68,7 @@ def load_metadata(data_dir: str | Path, return_simple:bool = False):
 
 def warm_image_cache(directory: str | Path):
     """
-    Allows warming of the image cache before training to help prevent storage bottlenecks.
+    Recursively reads all files under the provided image directory to warm the operating system's file cache.
 
     Parameters
     ----------
@@ -109,6 +110,9 @@ def create_splits(label_df: pd.DataFrame,
         label_df: pd.DataFrame
             A dataframe containing the image IDs and respective labels for all images.
 
+        random_state: int
+            A seed for the RNG in sklearn.model_selection.train_test_split.
+
     Returns
     -------
         tuple: A tuple containing:
@@ -129,7 +133,7 @@ def create_splits(label_df: pd.DataFrame,
 
     return train_df, val_df, test_df
 
-def create_transformations() -> tuple[v2.Compose, v2.Compose, v2.Compose]:
+def create_transformations():
     """
     Creates train, validation, and test image transformations.
 
@@ -208,13 +212,13 @@ class CassavaDataset(Dataset):
         """Returns the length of the dataset"""
         return len(self.df)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, index:int):
         """
         Returns the image, label, and possibly the image name based on the index passed.
 
         Parameters
         ----------
-        idx: int
+        index: int
             The index of the image to return.
 
         Returns
@@ -224,7 +228,7 @@ class CassavaDataset(Dataset):
             - label (int): The label of the image.
             - image_name (str): If return_path is True, the image name is also returned.
         """
-        row = self.df.iloc[idx]
+        row = self.df.iloc[index]
 
         image_path = os.path.join(self.image_dir, row["image_id"])
 

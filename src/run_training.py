@@ -1,14 +1,16 @@
+import numpy as np
 from pathlib import Path
 import pandas as pd
+import random
 import torch
 from torch.utils.data import DataLoader
 
-from dataset import load_metadata, create_splits, create_transformations, CassavaDataset
-from model import create_model, define_loss_optim
-from train import train_model
+from src.dataset import load_metadata, create_splits, create_transformations, CassavaDataset
+from src.model import create_model, define_loss_optim
+from src.train import train_model
 
 
-def history_to_df(history, stage):
+def history_to_df(history:dict, stage:str):
     """
     Converts training and validation history to a dataframe to be used for reporting purposes.
 
@@ -18,7 +20,7 @@ def history_to_df(history, stage):
         A dictionary containing the training loss, training accuracy, validation loss, and validation accuracy.
 
     stage: str
-        A string reporting what stage (for example, 'finetune' or 'test') the model was at.
+        A string reporting what stage (for example, 'frozen' or 'finetuned') the model was at.
 
     Returns
     -------
@@ -34,8 +36,22 @@ def history_to_df(history, stage):
         "val_accuracy": history["val_accuracy"]})
 
 def main():
+    seed = 42
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+    result_dir = Path("results")
+    model_dir = Path("models")
+
+    result_dir.mkdir(parents=True, exist_ok=True)
+    model_dir.mkdir(parents=True, exist_ok=True)
+
     data_dir = Path('data')
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     df, label_map, image_dir = load_metadata(data_dir)
 
@@ -56,22 +72,22 @@ def main():
     loss_fn, optimizer = define_loss_optim(train_df, model, device, layers='fc', lrs=1e-3)
 
     frozen_data = train_model(train_loader, val_loader, model, loss_fn, optimizer, device,
-                       checkpoint_name='best_frozen_resnet18.pt', image_directory=image_dir,
+                       checkpoint_name=model_dir / 'best_frozen_resnet18.pt', image_directory=image_dir,
                        reporting=True, warm_cache=True)
 
     # Partial fine_tuning
-    model = create_model(unfreeze_layers=['layer4', 'fc'], checkpoint='best_frozen_resnet18.pt').to(device)
+    model = create_model(unfreeze_layers=['layer4', 'fc'], checkpoint=model_dir / 'best_frozen_resnet18.pt').to(device)
     loss_fn, optimizer = define_loss_optim(train_df, model, device, layers=['layer4', 'fc'], lrs=[1e-4, 1e-3])
 
     finetuned_data = train_model(train_loader, val_loader, model, loss_fn, optimizer, device,
-                       checkpoint_name='TEST.pt', image_directory=image_dir,
+                       checkpoint_name= model_dir / 'best_finetuned_resnet18.pt', image_directory=image_dir,
                        reporting=True, warm_cache=False)
 
     frozen_df = history_to_df(frozen_data, "frozen")
-    fintuned_df = history_to_df(finetuned_data, "finetuned")
+    finetuned_df = history_to_df(finetuned_data, "finetuned")
 
-    history_df = pd.concat([frozen_df, fintuned_df], ignore_index=True)
-    history_df.to_csv("results/training_history.csv", index=False)
+    history_df = pd.concat([frozen_df, finetuned_df], ignore_index=True)
+    history_df.to_csv(result_dir/"test_predictions.csv", index=False)
 
 if __name__ == '__main__':
     main()

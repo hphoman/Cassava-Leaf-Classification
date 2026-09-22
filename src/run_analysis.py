@@ -5,13 +5,14 @@ from pathlib import Path
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
+from torchvision.transforms import v2
 
-from dataset import load_metadata, create_splits, create_transformations, CassavaDataset
-from model import create_model
-from evaluate import predict, compute_metrics
-from gradcam import GradCAM, create_overlay, prepare_gradcam_images
+from src.dataset import load_metadata, create_splits, create_transformations, CassavaDataset
+from src.model import create_model
+from src.evaluate import predict, compute_metrics
+from src.gradcam import GradCAM, create_overlay, prepare_gradcam_images
 
-def select_gradcam_examples(df):
+def select_gradcam_examples(df: pd.DataFrame):
     """
     After reviewing the data provided by the model, we discovered four common confusion for models: CGM being mistaken
     for CMD, healthy cases being mistaken for CBB, healthy cases being mistaken for CGM, and CBSD being mistaken for
@@ -26,7 +27,7 @@ def select_gradcam_examples(df):
 
     Returns
     -------
-    examples: pd.Series
+    examples: dict
         A DataFrame containing six examples of either common errors in the model or correct predictions.
     """
     examples = {}
@@ -69,7 +70,8 @@ def select_gradcam_examples(df):
 
     return examples
 
-def create_gradcam(gradcam:GradCAM, data:pd.DataFrame, simplified_labels:dict, image_dir:Path, device, model_transform):
+def create_gradcam(gradcam:GradCAM, data:pd.Series, simplified_labels:dict, image_dir:Path, device:torch.device,
+                   model_transform: v2.Compose, save_path: str|Path):
     """
     This runs all six images found in the select_gradcam_examples method through the GradCAM process and generates the
     final comparison image with MatPlotLib.
@@ -80,7 +82,7 @@ def create_gradcam(gradcam:GradCAM, data:pd.DataFrame, simplified_labels:dict, i
         A GradCAM object used to initialize the process, move the image through the model, and remove all hooks from
         the model
 
-    data: pd.Series
+    data: dict
         A DataFrame containing the image names, correct classes, predicted classes, and confidence scores to be used in
         the GradCAM process.
 
@@ -96,6 +98,9 @@ def create_gradcam(gradcam:GradCAM, data:pd.DataFrame, simplified_labels:dict, i
 
     model_transform: torchvision.transforms.v2
         A v2 composition transformation used to transform the test images.
+
+    save_path: str or Path
+        A string or Path object where the final figure should be saved
     """
     num = len(data)
     keys = list(data.keys())
@@ -106,11 +111,7 @@ def create_gradcam(gradcam:GradCAM, data:pd.DataFrame, simplified_labels:dict, i
         current_key = keys[i]
         img_path = os.path.join(image_dir, data[current_key]["image_id"])
 
-        display_image, model_img = prepare_gradcam_images(
-            img_path,
-            model_transform,
-            device
-        )
+        display_image, model_img = prepare_gradcam_images(img_path, model_transform, device)
 
         heatmap, pred = gradcam.generate(model_img)
 
@@ -134,12 +135,21 @@ def create_gradcam(gradcam:GradCAM, data:pd.DataFrame, simplified_labels:dict, i
 
             axs[i,j].axis('off')
 
+    plt.savefig(save_path)
     plt.show()
 
 def main():
+    result_dir = Path("results")
+    model_dir = Path("models")
+    figure_dir = Path("figures")
+
+    result_dir.mkdir(parents=True, exist_ok=True)
+    model_dir.mkdir(parents=True, exist_ok=True)
+    figure_dir.mkdir(parents=True, exist_ok=True)
+
     data_dir = Path("data")
-    checkpoint = Path("models/best_finetuned_resnet18.pt")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    checkpoint = model_dir / "best_finetuned_resnet18.pt"
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     print("Loading data...")
     df, label_map, image_dir, simple_label = load_metadata(data_dir, return_simple=True)
@@ -158,7 +168,7 @@ def main():
     y_true, y_pred, confidence = predict(model, test_loader, device)
     print("Prediction complete.\nCalculating metrics...")
 
-    metrics = compute_metrics(y_true, y_pred, label_map, report_f1=True)
+    metrics = compute_metrics(y_true, y_pred, simple_label, report_f1=True)
 
     result_df = test_df.reset_index(drop=True).copy()
 
@@ -166,19 +176,22 @@ def main():
     result_df["confidence"] = confidence
     result_df["correct"] = (result_df["predicted_label"] == result_df["label"])
 
-    result_df.to_csv("results/test_predictions.csv", index = False)
+    result_df.to_csv(result_dir / "test_predictions.csv", index = False)
 
     gradcam = GradCAM(model, model.layer4[-1].conv2)
 
-    examples = select_gradcam_examples(result_df)
+    try:
+        examples = select_gradcam_examples(result_df)
 
-    create_gradcam(gradcam, examples, simple_label, image_dir, device, test_transform)
+        create_gradcam(gradcam, examples, simple_label, image_dir, device, test_transform,
+                       figure_dir/ 'gradcam_examples.png')
 
-    gradcam.remove()
+    finally:
+        gradcam.remove()
 
     print(f"Model test completed!")
-    for key, val in metrics.items():
-        print(f"{key}: {val}")
+    for item in metrics:
+        print(f"{item}\n")
 
 if __name__ == "__main__":
     main()

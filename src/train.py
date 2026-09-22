@@ -1,13 +1,13 @@
 from pathlib import Path
 import torch
 
-from dataset import warm_image_cache
+from src.dataset import warm_image_cache
 
 def training_loop(dataloader: torch.utils.data.DataLoader,
-                model: type[torch.nn.Module],
+                model: torch.nn.Module,
                 device: torch.device,
-                loss_fn: type[torch.nn.Module],
-                optimizer: type[torch.optim.Optimizer],
+                loss_fn: torch.nn.Module,
+                optimizer: torch.optim.Optimizer,
                 accuracy_tracking: None | list = None,
                 loss_tracking: None | list = None,
                 reporting: bool = False):
@@ -70,7 +70,7 @@ def training_loop(dataloader: torch.utils.data.DataLoader,
             if batch % 100 == 0:
                 loss, current = (loss.item(),
                                  min((batch + 1) * dataloader.batch_size, size))
-                print(f"BATCH {batch} -> Loss {loss:7f} [{current:>5f}/{size:>5d}]")
+                print(f"BATCH {batch} -> Loss {loss:7f} [{current:>5d}/{size:>5d}]")
 
     if accuracy_tracking is not None:
         accuracy = (num_correct / num_seen).item()
@@ -81,14 +81,12 @@ def training_loop(dataloader: torch.utils.data.DataLoader,
         loss_tracking.append(avg_loss)
 
 def validation_loop(dataloader: torch.utils.data.DataLoader,
-                    model: type[torch.nn.Module],
+                    model: torch.nn.Module,
                     device: torch.device,
-                    loss_fn: type[torch.nn.Module],
+                    loss_fn: torch.nn.Module,
                     accuracy_tracking: None | list = None,
                     loss_tracking: None | list = None,
                     reporting: bool = False):
-
-
     """
     Runs one epoch of validation.
 
@@ -141,7 +139,7 @@ def validation_loop(dataloader: torch.utils.data.DataLoader,
                 if batch % 100 == 0:
                     loss, current = (loss.item(),
                                     min((batch + 1) * dataloader.batch_size, size))
-                    print(f"BATCH {batch} -> loss {loss:7f}  [{current:>5f}/{size:>5d}]")
+                    print(f"BATCH {batch} -> loss {loss:7f}  [{current:>5d}/{size:>5d}]")
 
     if accuracy_tracking is not None:
         accuracy = (num_correct / num_seen).item()
@@ -153,9 +151,9 @@ def validation_loop(dataloader: torch.utils.data.DataLoader,
 
 def train_model(train_dataloader: torch.utils.data.DataLoader,
                 val_dataloader: torch.utils.data.DataLoader,
-                model: type[torch.nn.Module],
-                loss_fn: type[torch.nn.Module],
-                optimizer: type[torch.optim.Optimizer],
+                model: torch.nn.Module,
+                loss_fn: torch.nn.Module,
+                optimizer: torch.optim.Optimizer,
                 device: torch.device,
                 checkpoint_name:str,
                 image_directory: str | Path | None = None,
@@ -166,7 +164,7 @@ def train_model(train_dataloader: torch.utils.data.DataLoader,
                 early_stop:bool = True,
                 warm_cache: bool = False):
     """
-    Trains a ResNet-18 model based for a predefined number of epochs.
+    Trains a ResNet-18 model based on a predefined number of epochs.
 
     Parameters
     ----------
@@ -174,7 +172,7 @@ def train_model(train_dataloader: torch.utils.data.DataLoader,
             A DataLoader object that contains training data.
 
         val_dataloader: torch.utils.data.Dataloader
-            A Dataloader object that contains the validation data.
+            A DataLoader object that contains the validation data.
 
         model: torch.nn.Module
             The ResNet-18 model to be trained.
@@ -205,7 +203,7 @@ def train_model(train_dataloader: torch.utils.data.DataLoader,
             True, a value for patience is expected
 
         min_delta: float | int
-            A float or int specifying minimum change expected from each epoch in order to defined as a
+            A float or int specifying minimum change expected from each epoch in order to be defined as a
             significant change.
 
         reporting: bool
@@ -216,7 +214,7 @@ def train_model(train_dataloader: torch.utils.data.DataLoader,
             specified number of epochs defined by the patience parameter.
 
         warm_cache: bool
-            If True, the provided image cached will be warmed before the first training loop.
+            If True, the provided image directory will be warmed before the first training loop.
 
     Returns
     -------
@@ -224,6 +222,9 @@ def train_model(train_dataloader: torch.utils.data.DataLoader,
             A dictionary containing the training loss, training accuracy, validation loss, and validation accuracy.
 
     """
+
+    if (patience is None) and (early_stop == True):
+        raise ValueError('patience must be defined if early_stop is set to True.')
 
     train_loss_tracking = []
     train_accuracy_tracking = []
@@ -266,8 +267,6 @@ def train_model(train_dataloader: torch.utils.data.DataLoader,
             epochs_since_improvement += 1
 
         if early_stop:
-            if patience is None:
-                raise ValueError('patience must be defined if early_stop is set to True.')
             if epochs_since_improvement >= patience:
                 print("Early stopping")
                 break
