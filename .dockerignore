@@ -1,0 +1,12 @@
+.venv/
+.git/
+src/__pycache__/
+.idea/
+
+data/
+results/
+figures/
+notebooks/
+
+.gitignore
+
