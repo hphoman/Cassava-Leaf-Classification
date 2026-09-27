@@ -172,7 +172,8 @@ def define_loss_optim(label_df: pd.DataFrame,
 
 def create_model(unfreeze_layers: str | tuple[str,...] = ['layer4', 'fc'],
                     checkpoint: str| None | Path =None,
-                    num_classes:int = 5):
+                    num_classes:int = 5,
+                    download_weights:bool = False):
     """
     Creates a ResNet-18 model with any specified layers unfrozen. This method is also used to load any checkpoints and
     ensure the output layer matches the correct number of classes.
@@ -188,14 +189,27 @@ def create_model(unfreeze_layers: str | tuple[str,...] = ['layer4', 'fc'],
         num_classes: int
             The number of classes to predict.
 
+        download_weights: bool
+           If true, the weights will be downloaded from ImageNet. If this parameter is false, which is default, the
+           function expects a checkpoint to be passed.
+
     Returns
     -------
         model: ResNet
             A ResNet-18 model with any specified layers unfrozen.
 
     """
-    weights = ResNet18_Weights.DEFAULT
-    model = resnet18(weights=weights)
+
+    if download_weights:
+        if checkpoint is not None:
+            model = resnet18(weights=None)
+        else:
+            raise ValueError("Download weights parameter is True, but no checkpoint was provided.")
+
+    # Else block for training a new model.
+    else:
+        weights = ResNet18_Weights.DEFAULT
+        model = resnet18(weights=weights)
 
     num_features = model.fc.in_features
     model.fc = nn.Linear(num_features, num_classes)

@@ -3,6 +3,7 @@ import numpy as np
 import os
 from pathlib import Path
 import pandas as pd
+from sklearn.metrics import classification_report
 import torch
 from torch.utils.data import DataLoader
 from torchvision.transforms import v2
@@ -83,7 +84,7 @@ def create_gradcam(gradcam:GradCAM, data:pd.Series, simplified_labels:dict, imag
         the model
 
     data: dict
-        A DataFrame containing the image names, correct classes, predicted classes, and confidence scores to be used in
+        A dictionary containing the image names, correct classes, predicted classes, and confidence scores to be used in
         the GradCAM process.
 
     simplified_labels: dict
@@ -96,7 +97,7 @@ def create_gradcam(gradcam:GradCAM, data:pd.Series, simplified_labels:dict, imag
     device: torch.device
         A PyTorch device where the model is running.
 
-    model_transform: torchvision.transforms.v2
+    model_transform: v2.Compose
         A v2 composition transformation used to transform the test images.
 
     save_path: str or Path
@@ -125,7 +126,7 @@ def create_gradcam(gradcam:GradCAM, data:pd.Series, simplified_labels:dict, imag
             if j == 0:
                 true_class = simplified_labels[int(data[current_key]["label"])]
                 predicted_class = simplified_labels[int(data[current_key]["predicted_label"])]
-                title_string = f"Original. True {true_class} | Predicted {predicted_class}"
+                title_string = f"True: {true_class} | Predicted: {predicted_class}"
 
                 axs[i,j].imshow(display_img)
                 axs[i,j].set_title(title_string)
@@ -135,7 +136,8 @@ def create_gradcam(gradcam:GradCAM, data:pd.Series, simplified_labels:dict, imag
 
             axs[i,j].axis('off')
 
-    plt.savefig(save_path)
+    plt.tight_layout()
+    plt.savefig(save_path, bbox_inches="tight", dpi=150)
     plt.show()
 
 def main():
@@ -150,6 +152,7 @@ def main():
     data_dir = Path("data")
     checkpoint = model_dir / "best_finetuned_resnet18.pt"
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
 
     print("Loading data...")
     df, label_map, image_dir, simple_label = load_metadata(data_dir, return_simple=True)
@@ -168,7 +171,14 @@ def main():
     y_true, y_pred, confidence = predict(model, test_loader, device)
     print("Prediction complete.\nCalculating metrics...")
 
-    metrics = compute_metrics(y_true, y_pred, simple_label, report_f1=True)
+    report, matrices, class_confusion, accuracy, macro_f1, weighted_f1 = compute_metrics(y_true, y_pred,
+                                                                                         simple_label, report_f1=True)
+
+    class_names = [simple_label[i] for i in range(len(simple_label))]
+    display_report = classification_report(y_true, y_pred, target_names=class_names, output_dict=False)
+
+    display_confusion = class_confusion.copy()
+    display_confusion["error"] = display_confusion["error"].round(3)
 
     result_df = test_df.reset_index(drop=True).copy()
 
@@ -190,8 +200,14 @@ def main():
         gradcam.remove()
 
     print(f"Model test completed!")
-    for item in metrics:
-        print(f"{item}\n")
+    print(f"Classification Report:\n{display_report}\n"
+          f"Raw Confusion Matrix:\n{np.round(matrices['raw'], 3)}\n"
+          f"Row Normalized Confusion Matrix:\n{np.round(matrices['row'], 3)}\n"
+          f"Column Normalized Confusion Matrix:\n{np.round(matrices['column'], 3)}\n"
+          f"Class Confusion:\n{display_confusion.to_string(index=False)}\n"
+          f"Accuracy: {accuracy * 100:.3f}%\n"
+          f"Macro F1: {macro_f1 * 100:.3f}%\n"
+          f"Weighted F1: {weighted_f1 * 100:.3f}%")
 
 if __name__ == "__main__":
     main()

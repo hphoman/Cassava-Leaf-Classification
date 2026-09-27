@@ -87,7 +87,7 @@ def main():
     finetuned_df = history_to_df(finetuned_data, "finetuned")
 
     history_df = pd.concat([frozen_df, finetuned_df], ignore_index=True)
-    history_df.to_csv(result_dir/"test_predictions.csv", index=False)
+    history_df.to_csv(result_dir/"training_history.csv", index=False)
 
 if __name__ == '__main__':
     main()
