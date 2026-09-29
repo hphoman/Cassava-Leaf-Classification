@@ -39,15 +39,15 @@ def select_gradcam_examples(df: pd.DataFrame):
                             .sort_values("confidence", ascending=False)
                             .iloc[0])
 
-    examples["healthy_CBB"] = (df[
+    examples["healthy_CMD"] = (df[
                                 (df["label"] == 4)
-                                & (df["predicted_label"] == 0)]
+                                & (df["predicted_label"] == 3)]
                                 .sort_values("confidence", ascending=False)
                                 .iloc[0])
 
-    examples["healthy_CGM"] = (df[
-                                (df["label"] == 4)
-                                & (df["predicted_label"] == 2)]
+    examples["CBSD_healthy"] = (df[
+                                (df["label"] == 1)
+                                & (df["predicted_label"] == 4)]
                                 .sort_values("confidence", ascending=False)
                                 .iloc[0])
 

@@ -2,15 +2,13 @@
 
 An end-to-end PyTorch image-classification project for identifying
 cassava leaf disease from field images. The project uses transfer
-learning with ResNet-18, a two-stage frozen/fine-tuned training
+learning with a ResNet-18 model, a two-stage frozen/fine-tuned training
 pipeline, held-out test evaluation, targeted error analysis, Grad-CAM
 interpretability, and a Dockerized inference/analysis workflow.
 
-The emphasis of this project is not only on classification accuracy, but
-on building and evaluating a reproducible machine-learning pipeline:
-separating training, validation, and test data; examining class-level
-performance under substantial class imbalance; investigating systematic
-failure modes; and inspecting what image regions influence model
+The emphasis of this project is on building and evaluating a machine-learning pipeline. This is done through
+creating data splits, examining class-level performance under substantial class imbalance, 
+investigating systematic failure modes, and inspecting what image regions influence model
 predictions.
 
 ## Results at a Glance
@@ -35,8 +33,7 @@ Class-level performance:
   | Cassava Mosaic Disease (CMD)        |      0.872 |   0.940  |    0.905   | 1,316 |   
   | Healthy                             |      0.582 |   0.647  |    0.613   | 258  |   
 
-The difference between macro and weighted F1 is important. The test set
-is strongly imbalanced, with CMD representing 1,316 of 2,140 samples.
+The dataset is strongly imbalanced, with CMD representing 1,316 of 2,140 samples.
 Accuracy alone therefore overstates how consistently the model performs
 across all five classes. The macro F1 of 0.638 better exposes the weaker
 performance on the smaller classes.
@@ -46,7 +43,7 @@ performance on the smaller classes.
 This project uses the image and label data from the **Cassava Leaf
 Disease Classification** Kaggle competition:
 
-https://www.kaggle.com/competitions/cassava-leaf-disease-classification
+[Cassava Leaf Classification Dataset](https://www.kaggle.com/competitions/cassava-leaf-disease-classification)
 
 The model predicts five classes:
 
@@ -82,7 +79,7 @@ The metadata is split into:
 -   **10% validation**
 -   **10% held-out testing**
 
-The split is stratified by class and uses a fixed random state of `42`.
+The split is stratified by class and uses a fixed random state of 42.
 The held-out test split is not used during model training or checkpoint
 selection.
 
@@ -138,9 +135,9 @@ Using a lower learning rate for `layer4` allows the pretrained visual
 features to adapt more conservatively while the classification head
 continues to learn more aggressively.
 
-The default loss is cross-entropy and the optimizer is Adam. The model
-utilities also support balanced, square-root-balanced, unweighted, or
-explicitly supplied class weights for experimentation.
+The default loss function is cross-entropy and the optimizer is Adam. The model was tested on various
+weights, including balanced, square-root-balanced, and unweighted. After testing, the model performed
+best without class weighting, but utilities to replicate all tests remain in code for reproducibility.
 
 ### Checkpointing and early stopping
 
@@ -188,8 +185,7 @@ results/training_history.csv
 ### Error analysis
 
 The strongest class is CMD, with an F1-score of approximately **0.905**.
-Performance is substantially weaker on the smaller classes, particularly
-CBB.
+Performance is weaker on the smaller classes, particularly CBB.
 
 Several recurring failure modes appear in the held-out predictions:
 
@@ -217,8 +213,8 @@ The analysis intentionally includes both high-confidence correct
 predictions and representative high-confidence errors, including:
 
 -   CGM predicted as CMD
--   Healthy predicted as CBB
--   Healthy predicted as CGM
+-   Healthy predicted as CMD
+-   CBSD predicted as Healthy
 -   CBSD predicted as CMD
 -   correctly predicted CMD
 -   correctly predicted Healthy
@@ -227,8 +223,8 @@ predictions and representative high-confidence errors, including:
 
 The Grad-CAM results should be treated as a diagnostic visualization
 rather than proof that the network has learned biologically correct
-disease features. They provide evidence about *where* the model is
-focusing for a particular prediction, not a causal explanation of *why*
+disease features. They provide evidence about where the model is
+focusing for a particular prediction, not a causal explanation of why
 that region determines the class.
 
 ## Repository Structure
@@ -269,8 +265,8 @@ Grad-CAM workflow.
 ### 1. Clone the repository
 
 ``` bash
-git clone <repository-url>
-cd PlantML
+git clone https://github.com/hphoman/Cassava-Leaf-Classification
+cd Cassava-Leaf-Classification
 ```
 
 ### 2. Download the dataset
@@ -417,8 +413,7 @@ are not provided or claimed as supported by this repository.
 
 A few implementation choices were made deliberately:
 
--   **Analysis is separate from training.** A user can inspect the final
-    model without spending time retraining ResNet-18.
+
 -   **The complete checkpoint is loaded without downloading ImageNet
     weights again.** ImageNet initialization is needed when starting
     transfer learning, but it is redundant when reconstructing the
@@ -443,11 +438,10 @@ substantially more reliably than CBB, CBSD, CGM, and Healthy, and the
 class imbalance means the overall accuracy is influenced heavily by CMD
 performance.
 
-Second, several disease/healthy pairs show systematic confusion. In
-particular, CGM is frequently predicted as CMD, while Healthy samples
-are sometimes predicted as CMD or CBB. Further work could investigate
-stronger class-balancing strategies, targeted augmentation, alternative
-architectures, or additional data.
+Several systematic confusion patterns remain. CGM is frequently predicted as CMD, 
+Healthy samples are sometimes predicted as CMD, and CBSD is commonly confused with both 
+Healthy and CMD. Further work could investigate stronger class-balancing strategies, targeted 
+augmentation, alternative architectures, or additional data.
 
 Third, Grad-CAM provides a useful view of spatial attention but should
 not be interpreted as a complete explanation of the classifier's
